@@ -1,0 +1,23 @@
+# Ignore Node.js modules
+node_modules/
+
+# Ignore environment variables
+.env
+
+# Ignore logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+# Ignore IDE/editor files
+.vscode/
+.idea/
+*.swp
+
+# Ignore Leaflet source folder
+leaflet/
