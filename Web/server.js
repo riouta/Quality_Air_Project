@@ -8,15 +8,15 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Your TTN credentials (replace with your actual values)
+// TTN credentials 
 const options = {
-  host: 'au1.cloud.thethings.network:1883', // E.g., "eu1.cloud.thethings.network"
+  host: 'eu1.cloud.thethings.network', 
   port: 1883,                 // MQTT port (default: 1883)
-  username: 'quality-air-project@ttntion-id',  // TTN App ID
-  password: 'NNSXS.V72EVLCYIM6ILOJRKDDF5BT2K7U2CN4GVZMT4QA.VSBSVFH5FX2X3U4WO4WCLE6UQ6Q753AIAUXWM35XS6QLKFCYAESQ',          // TTN API Key
+  username: 'air-quality-pjt@ttn',  // TTN App ID
+  password: 'NNSXS.HVGDTP7MF47OJYKDKKU7QHVJTHCH4SVHEEW2HRY.PE5ABVZX73A3DOJQZHG4G7VMRQSD5R5G5ICHC2BMXTDR2BMDPDCA',          // TTN API Key
 };
 
-const mqttTopic = 'v3/quality-air-project/devices/microcontroleur-feather-m0/up'; // TTN MQTT Topic
+const mqttTopic = 'v3/air-quality-pjt/devices/air-quality-pjt/up'; // TTN MQTT Topic
 
 const activeDevices = new Set(); // Track unique device IDs
 const airQualityData = []; // Store air quality data
