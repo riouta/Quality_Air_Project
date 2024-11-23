@@ -43,11 +43,21 @@
       // Display the data in the DOM
       const dataDiv = document.getElementById('data');
       dataDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-      // Initialize map (e.g., with Leaflet.js or Google Maps API)
-    const map = L.map('map').setView([51.505, -0.09], 13); // Center the map on (London?)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map);
+
+    // Update the map with GPS coordinates (latest device location)
+    if (data.gps && data.gps.latitude && data.gps.longitude) {
+      const map = L.map('map').setView([data.gps.latitude, data.gps.longitude], 13); // Center the map
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map);
+    
+      // Add marker for the device's location
+      L.marker([data.gps.latitude, data.gps.longitude])
+        .addTo(map)
+        .bindPopup("Device Location")
+        .openPopup();
+
+    }
     });
   </script>
 </body>

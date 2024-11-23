@@ -38,18 +38,20 @@ client.on('message', (topic, message) => {
   const { end_device_ids, uplink_message } = data;
   const deviceId = end_device_ids.device_id;
   const airQuality = uplink_message.decoded_payload.air_quality;
+  const gps = uplink_message.decoded_payload.gps;
 
   // Add to active devices
   activeDevices.add(deviceId);
 
   // Add air quality data with timestamp
-  airQualityData.push({ deviceId, airQuality, timestamp: new Date() });
+  airQualityData.push({ deviceId, airQuality, gps, timestamp: new Date() });
 
   /// Emit the updated data to the frontend
   io.emit('event-name', {
     activeDevices: Array.from(activeDevices),
     airQualityData,
     averageAirQuality: computeAverageAirQuality(),
+    gps: gps, 
   });
 });
 
