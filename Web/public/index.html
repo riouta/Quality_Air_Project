@@ -5,22 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TTN Data Monitor</title>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1>Real-Time TTN Data</h1>
   <div class ="container">
     <div class ="card">
       <h3>Active Devices</h3>
-      <div id="active-devices"></div>
+      <div id="active-devices">Loading..</div>
     </div>
 
     <div class ="card">
-      <h3>Average air quality of the day</h3>
-      <div id="average-quality"></div>
+      <h3>Average air quality today</h3>
+      <div id="average-quality">Loading..</div>
     </div>
   </div>
 
   <div id="data"></div>
+  <h3>Received Data:</h3>
+    <pre>Waiting for data...</pre>
+  </div>
 
   <a href="/export" target="_blank">Export Data to CSV</a>
 
@@ -38,7 +44,7 @@
       const dataDiv = document.getElementById('data');
       dataDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
       // Initialize map (e.g., with Leaflet.js or Google Maps API)
-    const map = L.map('map').setView([51.505, -0.09], 13); // Center the map
+    const map = L.map('map').setView([51.505, -0.09], 13); // Center the map on (London?)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
     }).addTo(map);
