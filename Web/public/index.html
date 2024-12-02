@@ -3,61 +3,63 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TTN Data Monitor</title>
-  <script src="/socket.io/socket.io.js"></script>
+  <title>TTN Air Quality Monitor</title>
+  <script src="/socket.io/socket.io.js"></script> <!-- Load socket.io.js -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css">
+  <style>
+    #map {
+      height: 500px;
+      width: 100%;
+    }
+    #info {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    #info p {
+      margin: 5px 0;
+    }
+  </style>
 </head>
 <body>
-  <h1>Real-Time TTN Data</h1>
-  <div class ="container">
-    <div class ="card">
-      <h3>Active Devices</h3>
-      <div id="active-devices">Loading..</div>
-    </div>
+  <h1>Live Air Quality Monitoring</h1>
+  <div id="map"></div>
 
-    <div class ="card">
-      <h3>Average air quality today</h3>
-      <div id="average-quality">Loading..</div>
-    </div>
+  <!-- Information display for latitude, longitude, and CO2 -->
+  <div id="info">
+    <p><b>Latitude:</b> <span id="latitude">N/A</span></p>
+    <p><b>Longitude:</b> <span id="longitude">N/A</span></p>
+    <p><b>CO2 Level:</b> <span id="co2">N/A</span> ppm</p>
   </div>
-
-  <div id="data"></div>
-  <h3>Received Data:</h3>
-    <pre>Waiting for data...</pre>
-  </div>
-
-  <a href="/export" target="_blank">Export Data to CSV</a>
-
-  <div id="map" class="map-container"></div>
 
   <script>
-    const socket = io();
+    const socket = io(); // Connect to the socket.io server
 
-    // Listen for 'event-name' from the backend
-    socket.on('event-name', (data) => {
-      document.getElementById('active-devices').textContent = data.activeDevices.join(", ");
-      document.getElementById('average-quality').textContent = data.averageAirQuality.toFixed(2);
+    // Initialize Leaflet map
+    const map = L.map("map").setView([50.849876, 4.453944], 13); // Default center (modify as needed)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
 
-      // Display the data in the DOM
-      const dataDiv = document.getElementById('data');
-      dataDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    // Listen for air quality data from the server
+    socket.on("air-quality-data", (data) => {
+      console.log("Received data:", data);
 
-    // Update the map with GPS coordinates (latest device location)
-    if (data.gps && data.gps.latitude && data.gps.longitude) {
-      const map = L.map('map').setView([data.gps.latitude, data.gps.longitude], 13); // Center the map
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-      }).addTo(map);
-    
-      // Add marker for the device's location
-      L.marker([data.gps.latitude, data.gps.longitude])
-        .addTo(map)
-        .bindPopup("Device Location")
-        .openPopup();
+      // Display latitude, longitude, and CO2 values on the page
+      document.getElementById("latitude").textContent = data.latitude || "N/A";
+      document.getElementById("longitude").textContent = data.longitude || "N/A";
+      document.getElementById("co2").textContent = data.co2 || "N/A";
 
-    }
+      // Add marker for device location
+      if (data.latitude && data.longitude) {
+        const marker = L.marker([data.latitude, data.longitude]).addTo(map);
+        marker.bindPopup(`
+          <b>Device:</b> ${data.deviceId}<br>
+          <b>CO2:</b> ${data.co2} ppm<br>
+          <b>PM2.5:</b> ${data.pm25} µg/m³<br>
+          <b>Time:</b> ${new Date(data.timestamp).toLocaleString()}
+        `).openPopup();
+      }
     });
   </script>
 </body>

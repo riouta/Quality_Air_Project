@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "express": "^4.21.1",
+    "leaflet": "^1.9.4",
     "mqtt": "^5.10.2",
     "socket.io": "^4.8.1"
   }

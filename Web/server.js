@@ -1,82 +1,72 @@
 const express = require("express");
+const mqtt = require("mqtt");
 const http = require("http");
 const socketIo = require("socket.io");
-const mqtt = require("mqtt");
-const fs = require("fs"); // For exporting data to CSV
 
+// Create an Express app and server
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// TTN credentials 
+// TTN MQTT credentials
 const options = {
-  host: 'eu1.cloud.thethings.network', 
-  port: 1883,                 // MQTT port (default: 1883)
-  username: 'air-quality-pjt@ttn',  // TTN App ID
-  password: 'NNSXS.HVGDTP7MF47OJYKDKKU7QHVJTHCH4SVHEEW2HRY.PE5ABVZX73A3DOJQZHG4G7VMRQSD5R5G5ICHC2BMXTDR2BMDPDCA',          // TTN API Key
+  host: "eu1.cloud.thethings.network", // TTN MQTT server for Europe region
+  port: 1883,                          // Default MQTT port
+  username: "air-quality-pjt@ttn",     // TTN Application ID
+  password: "NNSXS.HVGDTP7MF47OJYKDKKU7QHVJTHCH4SVHEEW2HRY.PE5ABVZX73A3DOJQZHG4G7VMRQSD5R5G5ICHC2BMXTDR2BMDPDCA" // TTN API Key
 };
 
-const mqttTopic = 'v3/air-quality-pjt/devices/air-quality-pjt/up'; // TTN MQTT Topic
+const mqttTopic = "v3/air-quality-pjt@ttn/devices/air-quality-pjt/up"; // Uplink topic for the TTN device
 
-const activeDevices = new Set(); // Track unique device IDs
-const airQualityData = []; // Store air quality data
+// Connect to the MQTT broker
+const mqttClient = mqtt.connect(options);
 
-// Connect to TTN via MQTT
-const client = mqtt.connect(options);
+// Serve the HTML files
+app.use(express.static("public")); // Make sure the HTML is in the 'public' folder
 
-client.on('connect', () => {
-  console.log('Connected to TTN MQTT');
-  // Subscribe to the uplink topic for your device
-  client.subscribe(mqttTopic);
-});
+// Set up MQTT event listener
+mqttClient.on("connect", () => {
+  console.log("Connected to TTN MQTT");
 
-client.on('message', (topic, message) => {
-  // Parse the message received from TTN (uplink)
-  const data = JSON.parse(message.toString());
-  console.log("Data received:", data);
-
-  const { end_device_ids, uplink_message } = data;
-  const deviceId = end_device_ids.device_id;
-  const airQuality = uplink_message.decoded_payload.air_quality;
-  const gps = uplink_message.decoded_payload.gps;
-
-  // Add to active devices
-  activeDevices.add(deviceId);
-
-  // Add air quality data with timestamp
-  airQualityData.push({ deviceId, airQuality, gps, timestamp: new Date() });
-
-  /// Emit the updated data to the frontend
-  io.emit('event-name', {
-    activeDevices: Array.from(activeDevices),
-    airQualityData,
-    averageAirQuality: computeAverageAirQuality(),
-    gps: gps, 
+  // Subscribe to the uplink topic
+  mqttClient.subscribe(mqttTopic, (err) => {
+    if (err) {
+      console.error("Failed to subscribe to topic:", err.message);
+    } else {
+      console.log(`Subscribed to topic: ${mqttTopic}`);
+    }
   });
 });
 
-function computeAverageAirQuality() {
-  const today = new Date().toISOString().split("T")[0];
-  const todayData = airQualityData.filter(
-    (entry) => entry.timestamp.toISOString().split("T")[0] === today
-  );
-  const sum = todayData.reduce((acc, entry) => acc + entry.airQuality, 0);
-  return todayData.length > 0 ? sum / todayData.length : 0;
-}
+// Listen for messages from TTN and emit data to the front-end
+mqttClient.on("message", (topic, message) => {
+  console.log(`Message received on topic ${topic}:`);
 
-// Export data to CSV
-app.get('/export', (req, res) => {
-  const csvData = "Device ID, Air Quality, Timestamp\n" +
-    airQualityData.map(entry => `${entry.deviceId}, ${entry.airQuality}, ${entry.timestamp}`).join("\n");
-  fs.writeFileSync("air_quality_data.csv", csvData);
-  res.download("air_quality_data.csv");
+  try {
+    // Parse the JSON payload
+    const data = JSON.parse(message.toString());
+    console.log("Decoded Data:", data);
+
+    // Extract relevant fields
+    const { end_device_ids, uplink_message } = data;
+    const deviceId = end_device_ids.device_id;
+    const decodedPayload = uplink_message.decoded_payload;
+
+    // Emit the data to the front-end via socket.io
+    io.emit("air-quality-data", {
+      deviceId: deviceId,
+      co2: decodedPayload.co2,
+      pm25: decodedPayload.pm25,
+      latitude: decodedPayload.latitude,
+      longitude: decodedPayload.longitude,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error("Error parsing message:", error.message);
+  }
 });
 
-// Serve frontend files
-app.use(express.static("public"));
-
-// Start the server
+// Start the server on port 3000
 server.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
+  console.log("Server is running on http://localhost:3000");
 });
-
