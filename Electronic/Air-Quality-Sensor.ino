@@ -41,7 +41,7 @@ static osjob_t sendjob;
 
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations).
-const unsigned TX_INTERVAL = 7;
+const unsigned TX_INTERVAL = 30;
 
 // Pin mapping for Adafruit Feather M0 LoRa
 const lmic_pinmap lmic_pins = {
@@ -182,7 +182,7 @@ void gps_func() {
     Serial.println(longitude, 6);
 
     Serial.print("AIR SENSOR : ");
-    Serial.println(analogRead(A3), 6);
+    Serial.println(analogRead(A3), 1);
 
     Serial.println();
   }
@@ -190,14 +190,13 @@ void gps_func() {
 
 void buildPayload() {
     // Dummy air quality data
-    uint16_t co2 = 400;  // CO2 concentration in ppm
-    uint16_t pm25 = 35;  // PM2.5 concentration in µg/m³
+    uint16_t co2 = analogRead(A3);  // CO2 concentration in ppm
+
+    uint16_t scaled_co2 = map(co2, 0, 1023, 0, 1000);
 
     // Encode air quality data
-    payload[0] = (co2 >> 8) & 0xFF; // CO2 MSB
-    payload[1] = co2 & 0xFF;        // CO2 LSB
-    payload[2] = (pm25 >> 8) & 0xFF; // PM2.5 MSB
-    payload[3] = pm25 & 0xFF;        // PM2.5 LSB
+    payload[0] = (scaled_co2 >> 8) & 0xFF; // air MSB
+    payload[1] = scaled_co2 & 0xFF;        // air LSB
 
     // Encode latitude and longitude as IEEE 754 floats
     floatToBytes(latitude, &payload[4]);  // Latitude (4 bytes)
@@ -207,15 +206,28 @@ void buildPayload() {
     for (int i = 12; i < 16; i++) {
         payload[i] = 0x00;
     }
+/*
+    for (int i = 0; i < 16; i++) {
+        Serial.print(payload[i], HEX);
+        Serial.print(" ");
+    }
+    Serial.println("build payload END ");
+*/
 }
 
 // Helper function to encode a float (4 bytes in IEEE 754)
 void floatToBytes(float value, uint8_t* buffer) {
-    uint32_t asInt = *((uint32_t*)&value); // Treat float as uint32_t
-    buffer[0] = (asInt >> 24) & 0xFF;      // MSB
-    buffer[1] = (asInt >> 16) & 0xFF;
-    buffer[2] = (asInt >> 8) & 0xFF;
-    buffer[3] = asInt & 0xFF;              // LSB
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.f = value;
+
+    // Encode in big-endian
+    buffer[0] = (u.i >> 24) & 0xFF; // MSB
+    buffer[1] = (u.i >> 16) & 0xFF;
+    buffer[2] = (u.i >> 8) & 0xFF;
+    buffer[3] = u.i & 0xFF;         // LSB
 }
 
 
@@ -229,7 +241,9 @@ void do_send(osjob_t* j){
         // transmit on port 1 (the first parameter); you can use any value from 1 to 223 (others are reserved).
         // don't request an ack (the last parameter, if not zero, requests an ack from the network).
         // Remember, acks consume a lot of network resources; don't ask for an ack unless you really need it.
-        LMIC_setTxData2(1, payload, sizeof(payload)-1, 0);
+        // LMIC_setTxData2(1, payload, sizeof(payload)-1, 0);
+        LMIC_setTxData2(1, payload, sizeof(payload), 0);
+
     }
     // Next TX is scheduled after TX_COMPLETE event.
 }
