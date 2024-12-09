@@ -8,32 +8,69 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    #map {
-      height: 500px;
-      width: 100%;
+    body {
+      display: flex;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
     }
+
+    /* Sidebar for data */
     #info {
-      margin-top: 20px;
-      font-size: 18px;
+      width: 300px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-left: 1px solid #ddd;
+      box-shadow: -3px 0 5px rgba(0, 0, 0, 0.1);
     }
+
+    #info h1 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
     #info p {
-      margin: 5px 0;
+      font-size: 16px;
+      margin: 10px 0;
+    }
+
+    /* Map container */
+    #map {
+      flex: 1;
+      height: 100vh;
+    }
+
+    /* Overall layout */
+    #container {
+      display: flex;
+      height: 100vh;
+      width: 100%;
     }
   </style>
 </head>
 <body>
-  <h1>Live Air Quality Monitoring</h1>
-  <div id="map"></div>
+  <div id="container">
+    <!-- Map Section -->
+    <div id="map"></div>
 
-  <!-- Information display for latitude, longitude, and CO2 -->
-  <div id="info">
-    <p><b>Latitude:</b> <span id="latitude">N/A</span></p>
-    <p><b>Longitude:</b> <span id="longitude">N/A</span></p>
-    <p><b>CO2 Level:</b> <span id="co2">N/A</span> ppm</p>
+    <!-- Sidebar Information Section -->
+    <div id="info">
+      <h1>Live Air Quality Data : Sensor 1</h1>
+      <p><b>Latitude:</b> <span id="latitude">N/A</span></p>
+      <p><b>Longitude:</b> <span id="longitude">N/A</span></p>
+      <p><b>CO2 Level:</b> <span id="co2">N/A</span> /1024</p>
+      <p><b>Data Points Retrieved:</b> <span id="data-point-count">0</span></p>
+      <h1>Global information</h1>
+      <p><b>Average CO2 Level:</b> <span id="average-co2">N/A</span> /1024</p>
+      <button id="export-csv">Export Data to CSV</button> <!-- Export button -->
+    </div>
   </div>
 
   <script>
     const socket = io(); // Connect to the socket.io server
+    const airQualityData = []; // Array to store all received data
+
 
     // Initialize Leaflet map
     const map = L.map("map").setView([50.849876, 4.453944], 13); // Default center (modify as needed)
@@ -41,26 +78,91 @@
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
 
-    // Listen for air quality data from the server
+    function exportToCSV() {
+      if (airQualityData.length === 0) {
+        alert("No data to export!");
+        return;
+      }
+    
+      // Create CSV content
+      let csvContent = "Latitude,Longitude,CO2 Level,Date Time\n"; // Column headers
+      airQualityData.forEach((entry) => {
+        csvContent += `${entry.latitude},${entry.longitude},${entry.co2},${entry.dateTime}\n`;
+      });
+    
+      // Create a Blob with the CSV content
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+    
+      // Create a temporary link element to trigger download
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "air_quality_data.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    
+
+    function convertToDMS(coordinate, isLatitude) {
+      const absolute = Math.abs(coordinate);
+      const degrees = Math.floor(absolute);
+      const minutesNotTruncated = (absolute - degrees) * 60;
+      const minutes = Math.floor(minutesNotTruncated);
+      const seconds = Math.floor((minutesNotTruncated - minutes) * 60);
+
+      const direction = isLatitude
+        ? coordinate >= 0
+          ? "N"
+          : "S"
+        : coordinate >= 0
+        ? "E"
+        : "W";
+
+      return `${degrees}°${minutes}'${seconds}" ${direction}`;
+    }
+
     socket.on("air-quality-data", (data) => {
       console.log("Received data:", data);
-
-      // Display latitude, longitude, and CO2 values on the page
-      document.getElementById("latitude").textContent = data.latitude || "N/A";
-      document.getElementById("longitude").textContent = data.longitude || "N/A";
+    
+      // Update the DOM with received data (use DMS format for display)
+      document.getElementById("latitude").textContent = data.latitudeDMS || "N/A";
+      document.getElementById("longitude").textContent = data.longitudeDMS || "N/A";
       document.getElementById("co2").textContent = data.co2 || "N/A";
+      document.getElementById("data-point-count").textContent = data.dataPointCount || "0"; // Update data point count
+      document.getElementById("average-co2").textContent = data.averageCO2 || "N/A"; // Update average CO2 level
+      document.getElementById("export-csv").addEventListener("click", exportToCSV);
 
-      // Add marker for device location
+      
+       // Save the raw data into the array for export
+      airQualityData.push({
+        latitude: data.latitude,
+        longitude: data.longitude,
+        co2: data.co2,
+        dateTime: new Date(data.timestamp).toLocaleString()
+      });
+
+      // Add a circle to represent the air quality data
       if (data.latitude && data.longitude) {
-        const marker = L.marker([data.latitude, data.longitude]).addTo(map);
-        marker.bindPopup(`
-          <b>Device:</b> ${data.deviceId}<br>
-          <b>CO2:</b> ${data.co2} ppm<br>
-          <b>PM2.5:</b> ${data.pm25} µg/m³<br>
-          <b>Time:</b> ${new Date(data.timestamp).toLocaleString()}
-        `).openPopup();
+        const color = data.co2 > 500 ? "purple" : data.co2 > 200 ? "red" : data.co2 > 50 ? "yellow" : "green";
+    
+        L.circle([data.latitude, data.longitude], {
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.5,
+          radius: 15 // Radius in meters
+        }).addTo(map)
+          .bindPopup(`
+            <b>Device:</b> ${data.deviceId}<br>
+            <b>CO2:</b> ${data.co2} /1024<br>
+            <b>Latitude:</b> ${data.latitudeDMS}<br>
+            <b>Longitude:</b> ${data.longitudeDMS}<br>
+            <b>Time:</b> ${new Date(data.timestamp).toLocaleString()}
+          `).openPopup();
       }
     });
+    
+    
   </script>
 </body>
 </html>

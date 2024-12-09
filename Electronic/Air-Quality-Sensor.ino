@@ -41,7 +41,7 @@ static osjob_t sendjob;
 
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations).
-const unsigned TX_INTERVAL = 30;
+const unsigned TX_INTERVAL = 60;
 
 // Pin mapping for Adafruit Feather M0 LoRa
 const lmic_pinmap lmic_pins = {
@@ -206,13 +206,6 @@ void buildPayload() {
     for (int i = 12; i < 16; i++) {
         payload[i] = 0x00;
     }
-/*
-    for (int i = 0; i < 16; i++) {
-        Serial.print(payload[i], HEX);
-        Serial.print(" ");
-    }
-    Serial.println("build payload END ");
-*/
 }
 
 // Helper function to encode a float (4 bytes in IEEE 754)

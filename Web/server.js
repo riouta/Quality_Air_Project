@@ -24,6 +24,25 @@ const mqttClient = mqtt.connect(options);
 // Serve the HTML files
 app.use(express.static("public")); // Make sure the HTML is in the 'public' folder
 
+// Utility function to convert coordinates to DMS format
+function convertToDMS(coordinate, isLatitude) {
+  const absolute = Math.abs(coordinate);
+  const degrees = Math.floor(absolute);
+  const minutesNotTruncated = (absolute - degrees) * 60;
+  const minutes = Math.floor(minutesNotTruncated);
+  const seconds = Math.floor((minutesNotTruncated - minutes) * 60);
+
+  const direction = isLatitude
+    ? coordinate >= 0
+      ? "N"
+      : "S"
+    : coordinate >= 0
+    ? "E"
+    : "W";
+
+  return `${degrees}°${minutes}'${seconds}" ${direction}`;
+}
+
 // Set up MQTT event listener
 mqttClient.on("connect", () => {
   console.log("Connected to TTN MQTT");
@@ -38,7 +57,10 @@ mqttClient.on("connect", () => {
   });
 });
 
-// Listen for messages from TTN and emit data to the front-end
+let dataPointCount = 0;
+let totalCO2 = 0;
+
+
 mqttClient.on("message", (topic, message) => {
   console.log(`Message received on topic ${topic}:`);
 
@@ -52,19 +74,36 @@ mqttClient.on("message", (topic, message) => {
     const deviceId = end_device_ids.device_id;
     const decodedPayload = uplink_message.decoded_payload;
 
-    // Emit the data to the front-end via socket.io
+    const co2Value = decodedPayload.co2;
+    if (co2Value != null) {
+      totalCO2 += co2Value;
+      dataPointCount++;
+    }
+
+    const averageCO2 = (dataPointCount > 0) ? (totalCO2 / dataPointCount).toFixed(2) : 0;
+
+
+    // Convert coordinates to DMS format
+    const latitudeDMS = convertToDMS(decodedPayload.latitude, true);
+    const longitudeDMS = convertToDMS(decodedPayload.longitude, false);
+
+    // Emit the data and the data point count to the client
     io.emit("air-quality-data", {
       deviceId: deviceId,
       co2: decodedPayload.co2,
-      pm25: decodedPayload.pm25,
-      latitude: decodedPayload.latitude,
-      longitude: decodedPayload.longitude,
-      timestamp: Date.now()
+      latitude: decodedPayload.latitude, // Decimal latitude
+      longitude: decodedPayload.longitude, // Decimal longitude
+      latitudeDMS: latitudeDMS, // DMS latitude for display
+      longitudeDMS: longitudeDMS, // DMS longitude for display
+      timestamp: Date.now(),
+      dataPointCount: dataPointCount, // Send the count
+      averageCO2: averageCO2 // Average CO2 value
     });
   } catch (error) {
     console.error("Error parsing message:", error.message);
   }
 });
+
 
 // Start the server on port 3000
 server.listen(3000, () => {
