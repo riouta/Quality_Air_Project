@@ -2,6 +2,8 @@ const express = require("express");
 const mqtt = require("mqtt");
 const http = require("http");
 const socketIo = require("socket.io");
+const { decode } = require("punycode");
+const { range } = require("express/lib/request");
 
 // Create an Express app and server
 const app = express();
@@ -43,6 +45,10 @@ function convertToDMS(coordinate, isLatitude) {
   return `${degrees}°${minutes}'${seconds}" ${direction}`;
 }
 
+function coorRange(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
 // Set up MQTT event listener
 mqttClient.on("connect", () => {
   console.log("Connected to TTN MQTT");
@@ -82,17 +88,23 @@ mqttClient.on("message", (topic, message) => {
 
     const averageCO2 = (dataPointCount > 0) ? (totalCO2 / dataPointCount).toFixed(2) : 0;
 
+    decodedLat = decodedPayload.latitude;
+    decodedLong = decodedPayload.longitude;
 
-    // Convert coordinates to DMS format
-    const latitudeDMS = convertToDMS(decodedPayload.latitude, true);
-    const longitudeDMS = convertToDMS(decodedPayload.longitude, false);
+    // uncomment if no GPS data is available
+    /*
+    decodedLat = coorRange(50.0000000000, 53.0000000000);
+    decodedLong = coorRange(0.00000000000000, 3.00000000000000);
+    */
+    const latitudeDMS = convertToDMS(decodedLat, true);
+    const longitudeDMS = convertToDMS(decodedLong, false);
 
     // Emit the data and the data point count to the client
     io.emit("air-quality-data", {
       deviceId: deviceId,
       co2: decodedPayload.co2,
-      latitude: decodedPayload.latitude, // Decimal latitude
-      longitude: decodedPayload.longitude, // Decimal longitude
+      latitude: decodedLat, // Decimal latitude
+      longitude: decodedLong, // Decimal longitude
       latitudeDMS: latitudeDMS, // DMS latitude for display
       longitudeDMS: longitudeDMS, // DMS longitude for display
       timestamp: Date.now(),
