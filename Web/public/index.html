@@ -59,10 +59,10 @@
       <h1>Live Air Quality Data : Sensor 1</h1>
       <p><b>Latitude:</b> <span id="latitude">N/A</span></p>
       <p><b>Longitude:</b> <span id="longitude">N/A</span></p>
-      <p><b>CO2 Level:</b> <span id="co2">N/A</span> /1024</p>
+      <p><b>Pollution Level:</b> <span id="co2">N/A</span> /1024</p>
       <p><b>Data Points Retrieved:</b> <span id="data-point-count">0</span></p>
       <h1>Global information</h1>
-      <p><b>Average CO2 Level:</b> <span id="average-co2">N/A</span> /1024</p>
+      <p><b>Average Pollution Level:</b> <span id="average-co2">N/A</span> /1024</p>
       <button id="export-csv">Export Data to CSV</button>
     </div>
   </div>
@@ -85,7 +85,7 @@
       }
     
       // Create CSV content
-      let csvContent = "Latitude,Longitude,CO2 Level,Date Time\n"; // Column headers
+      let csvContent = "Latitude,Longitude,Pollution Level,Date Time\n"; // Column headers
       airQualityData.forEach((entry) => {
         csvContent += `${entry.latitude},${entry.longitude},${entry.co2},${entry.dateTime}\n`;
       });
@@ -130,7 +130,7 @@
       document.getElementById("longitude").textContent = data.longitudeDMS || "N/A";
       document.getElementById("co2").textContent = data.co2 || "N/A";
       document.getElementById("data-point-count").textContent = data.dataPointCount || "0"; // Update data point count
-      document.getElementById("average-co2").textContent = data.averageCO2 || "N/A"; // Update average CO2 level
+      document.getElementById("average-co2").textContent = data.averageCO2 || "N/A"; // Update average Pollution level
       document.getElementById("export-csv").addEventListener("click", exportToCSV);
 
       
