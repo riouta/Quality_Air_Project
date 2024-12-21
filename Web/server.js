@@ -92,10 +92,10 @@ mqttClient.on("message", (topic, message) => {
     decodedLong = decodedPayload.longitude;
 
     // uncomment if no GPS data is available
-    
+    /*
     decodedLat = coorRange(50.0000000000, 53.0000000000);
     decodedLong = coorRange(0.00000000000000, 3.00000000000000);
-    
+    */
     const latitudeDMS = convertToDMS(decodedLat, true);
     const longitudeDMS = convertToDMS(decodedLong, false);
 
